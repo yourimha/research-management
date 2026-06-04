@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>연구원 참여율 · 인건비 관리 시스템</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;color:#1a1a1a;background:#f5f5f2;padding:1.5rem}
+h1{font-size:18px;font-weight:500;margin-bottom:1.5rem}
+.tabs{display:flex;border-bottom:1px solid #ddd;margin-bottom:1.5rem}
+.tab{padding:9px 20px;font-size:13px;cursor:pointer;border:none;background:transparent;color:#888;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.tab.on{color:#185FA5;border-bottom-color:#185FA5;font-weight:500}
+.tab:hover:not(.on){color:#333}
+.card{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:1.25rem;margin-bottom:1rem}
+.card-title{font-size:11px;font-weight:500;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:1rem}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.stat{background:#f8f8f6;border-radius:8px;padding:.75rem 1rem}
+.stat-label{font-size:12px;color:#888;margin-bottom:3px}
+.stat-val{font-size:20px;font-weight:500}
+.stat-sub{font-size:11px;color:#aaa;margin-top:2px}
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:500}
+.b-blue{background:#E6F1FB;color:#0C447C}
+.b-green{background:#EAF3DE;color:#27500A}
+.b-red{background:#FCEBEB;color:#791F1F}
+.b-gray{background:#f1efe8;color:#444}
+.b-teal{background:#E1F5EE;color:#085041}
+.b-coral{background:#FAECE7;color:#712B13}
+.b-purple{background:#EEEDFE;color:#3C3489}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:8px 10px;font-size:11px;font-weight:500;color:#888;border-bottom:1px solid #eee;text-align:left;white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafaf8}
+input[type=number],input[type=text],select{font-size:13px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;background:#fff;color:#1a1a1a;outline:none}
+input:focus,select:focus{border-color:#185FA5}
+.btn{padding:6px 14px;font-size:13px;border:1px solid #ddd;border-radius:6px;background:transparent;cursor:pointer;color:#333}
+.btn:hover{background:#f5f5f2}
+.btn-p{background:#185FA5;color:#fff;border-color:#185FA5}
+.btn-p:hover{background:#0C447C}
+.btn-sm{padding:3px 9px;font-size:12px}
+.btn-del{border-color:#A32D2D;color:#A32D2D}
+.btn-del:hover{background:#FCEBEB}
+.btn-edit{border-color:#185FA5;color:#185FA5}
+.btn-edit:hover{background:#E6F1FB}
+.alert{padding:9px 13px;border-radius:8px;font-size:13px;margin-bottom:8px}
+.a-ok{background:#EAF3DE;color:#27500A;border:1px solid #97C459}
+.a-err{background:#FCEBEB;color:#791F1F;border:1px solid #F09595}
+.a-info{background:#E6F1FB;color:#0C447C;border:1px solid #85B7EB}
+.pbar{height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden;margin-top:3px}
+.pfill{height:100%;border-radius:3px;transition:width .3s}
+.field-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.field-row label{font-size:12px;color:#666;min-width:110px;flex-shrink:0}
+.field-row input,.field-row select{flex:1}
+.scroll{overflow-x:auto}
+.panel{display:none}.panel.on{display:block}
+.edit-form{background:#f0f7ff;border:1px solid #b5d4f4;border-radius:8px;padding:1rem;margin-bottom:1rem}
+.edit-form .title{font-size:13px;font-weight:500;color:#0C447C;margin-bottom:10px}
+</style>
+</head>
+<body>
+<h1>📊 연구원 참여율 · 인건비 관리 시스템</h1>
+<div class="tabs">
+  <button class="tab on" onclick="go('matrix')">참여율 매트릭스</button>
+  <button class="tab" onclick="go('projects')">과제 관리</button>
+  <button class="tab" onclick="go('researchers')">연구원 관리</button>
+  <button class="tab" onclick="go('samchaek')">3책5공 검증</button>
+</div>
+<div id="p-matrix" class="panel on"></div>
+<div id="p-projects" class="panel"></div>
+<div id="p-researchers" class="panel"></div>
+<div id="p-samchaek" class="panel"></div>
+
+<script>
+const S = {
+  year: 2025,
+  editingRes: null,
+  projects: [
+    {id:'p1',name:'과제A',code:'2025-NRF-001',agency:'NRF',type:'주관',start:'2025-01',end:'2026-12',scRule:'3책5공',cashType:'현금',insYn:false,insRate:9.0},
+    {id:'p2',name:'과제B',code:'2025-IITP-002',agency:'IITP',type:'공동',start:'2025-03',end:'2027-02',scRule:'3책5공',cashType:'현물',insYn:true,insRate:9.0},
+    {id:'p3',name:'과제C',code:'2024-KETEP-003',agency:'KETEP',type:'주관',start:'2024-07',end:'2026-06',scRule:'3책5공',cashType:'현금',insYn:false,insRate:9.0},
+  ],
+  researchers: [
+    {id:'r1',name:'Kim',salary:72000000,isPI:true,dept:'전자공학과'},
+    {id:'r2',name:'Lee',salary:60000000,isPI:true,dept:'AI연구소'},
+    {id:'r3',name:'Park',salary:42000000,isPI:false,dept:'재료공학과'},
+  ],
+  part: {
+    'r1-p2':{rate:30,pi:false,startM:'2025-03',endM:'2027-02'},
+    'r1-p3':{rate:40,pi:true,startM:'2024-07',endM:'2026-06'},
+    'r2-p1':{rate:30,pi:true,startM:'2025-01',endM:'2026-12'},
+    'r2-p2':{rate:20,pi:false,startM:'2025-03',endM:'2026-12'},
+    'r3-p2':{rate:10,pi:false,startM:'2025-03',endM:'2026-06'},
+  }
+};
+
+function uid(){return 'x'+Math.random().toString(36).slice(2,6)}
+function fmt(n){return Math.round(n/10000)}
+function monthlySalary(r){return Math.round(r.salary/12)}
+function monthlyBase(r,p){
+  let base=monthlySalary(r);
+  return p.insYn ? Math.round(base*(1+(p.insRate||9)/100)) : base;
+}
+function totalRate(rId){
+  return Object.entries(S.part).filter(([k])=>k.startsWith(rId+'-')).reduce((s,[,v])=>s+v.rate,0);
+}
+function monthsBetween(s,e){
+  if(!s||!e)return 0;
+  let[sy,sm]=s.split('-').map(Number),[ey,em]=e.split('-').map(Number);
+  return Math.max(0,(ey-sy)*12+(em-sm)+1);
+}
+function monthsInYear(s,e,yr){
+  if(!s||!e)return 0;
+  let ys=yr+'-01',ye=yr+'-12';
+  let start=s>ys?s:ys,end=e<ye?e:ye;
+  return start>end?0:monthsBetween(start,end);
+}
+
+function go(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.querySelector('[onclick="go(\''+name+'\')"]').classList.add('on');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.getElementById('p-'+name).classList.add('on');
+  render(name);
+}
+function render(name){
+  if(name==='matrix') renderMatrix();
+  else if(name==='projects') renderProjects();
+  else if(name==='researchers') renderResearchers();
+  else if(name==='samchaek') renderSamchaek();
+}
+
+/* ===== 참여율 매트릭스 ===== */
+function renderMatrix(){
+  const yr=S.year;
+  let viol=getViolations();
+  let vhtml=viol.length ? viol.map(v=>'<div class="alert a-err">⚠ '+v+'</div>').join('') : '<div class="alert a-ok">✓ 모든 참여율이 정상입니다.</div>';
+  let yearSel=[2024,2025,2026,2027].map(y=>'<option '+(y===yr?'selected':'')+'>'+y+'</option>').join('');
+
+  let thead='<tr><th>연구원</th><th>연봉(세전)</th><th>월 인건비</th>';
+  S.projects.forEach(function(p){
+    let ins=p.insYn
+      ? '<span class="badge b-purple">4대보험 +'+p.insRate+'%</span>'
+      : '<span class="badge b-gray">세전 기준</span>';
+    thead+='<th>'+p.name+'<br><span style="font-size:10px;color:#aaa">'+p.code+'</span><br>'
+      +'<span class="badge '+(p.cashType==='현금'?'b-blue':'b-teal')+'">'+p.cashType+'</span> '
+      +'<span class="badge b-gray">'+p.type+'</span><br>'+ins+'</th>';
+  });
+  thead+='<th>총 참여율</th><th>가용 참여율</th></tr>';
+
+  let tbody='';
+  S.researchers.forEach(function(r){
+    let monthly=monthlySalary(r), tot=totalRate(r.id), avail=100-tot;
+    let rowBg=tot>100?'background:#fff5f5':'';
+    tbody+='<tr style="'+rowBg+'">'
+      +'<td><strong>'+r.name+'</strong><br><span style="font-size:11px;color:#888">'+r.dept+'</span><br>'
+      +'<span class="badge '+(r.isPI?'b-blue':'b-gray')+'">'+(r.isPI?'PI':'공동연구원')+'</span></td>'
+      +'<td style="text-align:right">'+fmt(r.salary)+'만원</td>'
+      +'<td style="text-align:right">'+fmt(monthly)+'만원</td>';
+
+    S.projects.forEach(function(p){
+      let key=r.id+'-'+p.id;
+      let v=S.part[key]||{rate:0,pi:false,startM:p.start,endM:p.end};
+      let rate=v.rate;
+      let base=monthlyBase(r,p);
+      let mthly=Math.round(base*rate/100);
+      let mths=rate>0?monthsInYear(v.startM,v.endM,yr):0;
+      let yearly=mthly*mths;
+      let insDetail=(p.insYn&&rate>0)
+        ? '<div style="font-size:10px;color:#7F77DD">월급 '+fmt(Math.round(monthly*rate/100))+'만 + 보험 '+fmt(mthly-Math.round(monthly*rate/100))+'만</div>'
+        : '';
+      tbody+='<td style="min-width:160px">'
+        +'<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px">'
+        +'<input type="number" min="0" max="100" step="5" value="'+rate+'" style="width:56px;text-align:right" onchange="setPart(\''+r.id+'\',\''+p.id+'\',\'rate\',+this.value)"> %'
+        +' <label style="font-size:11px;cursor:pointer"><input type="checkbox" '+(v.pi?'checked':'')+' onchange="setPart(\''+r.id+'\',\''+p.id+'\',\'pi\',this.checked)"> 책임</label>'
+        +'</div>';
+      if(rate>0){
+        tbody+='<div style="font-size:11px;color:#185FA5;font-weight:500">'+fmt(mthly)+'만원/월</div>'
+          +insDetail
+          +'<div style="font-size:11px;color:#888">'+yr+'년 '+mths+'개월 → <strong>'+fmt(yearly)+'만원</strong></div>'
+          +'<div style="display:flex;align-items:center;gap:3px;margin-top:3px">'
+          +'<input type="text" value="'+(v.startM||p.start)+'" style="width:66px;font-size:10px" onchange="setPart(\''+r.id+'\',\''+p.id+'\',\'startM\',this.value)"> ~'
+          +' <input type="text" value="'+(v.endM||p.end)+'" style="width:66px;font-size:10px" onchange="setPart(\''+r.id+'\',\''+p.id+'\',\'endM\',this.value)">'
+          +'</div>';
+      } else {
+        tbody+='<span style="font-size:11px;color:#bbb">미참여</span>';
+      }
+      tbody+='</td>';
+    });
+
+    let col=tot>100?'#A32D2D':tot>80?'#854F0B':'#27500A';
+    tbody+='<td style="text-align:center;font-weight:500;font-size:16px;color:'+col+'">'+tot+'%</td>'
+      +'<td style="text-align:center;color:'+(avail<0?'#A32D2D':avail===0?'#185FA5':'#888')+'">'+(avail>=0?'+':'')+avail+'%</td></tr>';
+  });
+
+  let summary='';
+  S.projects.forEach(function(p){
+    let salT=0,insT=0;
+    Object.entries(S.part).filter(function(e){return e[0].includes('-'+p.id);}).forEach(function(e){
+      let rId=e[0].split('-')[0], v=e[1];
+      let res=S.researchers.find(function(r){return r.id===rId;});
+      if(!res||!v.rate)return;
+      let mths=monthsInYear(v.startM||p.start,v.endM||p.end,yr);
+      let sal=Math.round(monthlySalary(res)*v.rate/100)*mths;
+      salT+=sal;
+      if(p.insYn) insT+=Math.round(sal*(p.insRate||9)/100);
+    });
+    summary+='<div class="stat"><div class="stat-label">'+p.name+' <span class="badge '+(p.cashType==='현금'?'b-blue':'b-teal')+'">'+p.cashType+'</span></div>'
+      +'<div class="stat-val">'+fmt(salT+insT).toLocaleString()+'만원</div>'
+      +'<div class="stat-sub">'+yr+'년 계상액'+(p.insYn?' (4대보험 '+fmt(insT)+'만 포함)':'(세전 기준)')+'</div></div>';
+  });
+
+  document.getElementById('p-matrix').innerHTML=
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;flex-wrap:wrap">'
+    +'<span style="font-size:13px;font-weight:500">기준연도</span>'
+    +'<select onchange="S.year=+this.value;render(\'matrix\')" style="width:90px">'+yearSel+'</select>'
+    +'<span style="font-size:12px;color:#888">세전 연봉 ÷ 12 × 참여율 = 월 계상액</span></div>'
+    +vhtml
+    +'<div class="card"><div class="card-title">연구원 × 과제 참여율</div>'
+    +'<div class="scroll"><table><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table></div></div>'
+    +'<div class="card"><div class="card-title">'+yr+'년 과제별 인건비 계상 요약</div>'
+    +'<div class="g3">'+summary+'</div></div>';
+}
+
+function setPart(rId,pId,field,val){
+  let key=rId+'-'+pId;
+  if(field==='rate'){
+    val=Math.max(0,Math.min(100,val));
+    if(val===0){delete S.part[key];}
+    else{
+      if(!S.part[key]){let p=S.projects.find(function(x){return x.id===pId;});S.part[key]={rate:val,pi:false,startM:p.start,endM:p.end};}
+      else S.part[key].rate=val;
+    }
+  } else if(S.part[key]) S.part[key][field]=val;
+  render('matrix');
+}
+
+/* ===== 과제 관리 ===== */
+function renderProjects(){
+  let rows=S.projects.map(function(p){
+    return '<tr><td><strong>'+p.name+'</strong></td>'
+      +'<td><code style="font-size:11px">'+p.code+'</code></td>'
+      +'<td><span class="badge b-blue">'+p.agency+'</span></td>'
+      +'<td><span class="badge '+(p.type==='주관'?'b-coral':'b-gray')+'">'+p.type+'</span></td>'
+      +'<td>'+p.start+' ~ '+p.end+'</td>'
+      +'<td><span class="badge '+(p.cashType==='현금'?'b-blue':'b-teal')+'">'+p.cashType+'</span></td>'
+      +'<td><span class="badge '+(p.insYn?'b-purple':'b-gray')+'">'+(p.insYn?'포함 +'+p.insRate+'%':'미포함')+'</span></td>'
+      +'<td><span class="badge b-teal">'+p.scRule+'</span></td>'
+      +'<td><button class="btn btn-sm btn-del" onclick="delProj(\''+p.id+'\')">삭제</button></td></tr>';
+  }).join('');
+
+  document.getElementById('p-projects').innerHTML=
+    '<div class="card"><div class="card-title">과제 목록</div>'
+    +'<div class="scroll"><table><thead><tr><th>과제명</th><th>과제번호</th><th>주관기관</th><th>유형</th><th>기간</th><th>현금/현물</th><th>4대보험</th><th>3책5공</th><th></th></tr></thead>'
+    +'<tbody>'+(rows||'<tr><td colspan="9" style="color:#bbb;text-align:center;padding:1rem">등록된 과제 없음</td></tr>')+'</tbody></table></div></div>'
+    +'<div class="card"><div class="card-title">과제 등록</div>'
+    +'<div class="g2"><div>'
+    +'<div class="field-row"><label>과제명</label><input type="text" id="pn" placeholder="스마트센서 개발"></div>'
+    +'<div class="field-row"><label>과제번호</label><input type="text" id="pc" placeholder="2025-NRF-001"></div>'
+    +'<div class="field-row"><label>주관기관</label><select id="pa"><option>NRF</option><option>IITP</option><option>KETEP</option><option>KIAT</option><option>기타</option></select></div>'
+    +'<div class="field-row"><label>주관/공동</label><select id="pt"><option>주관</option><option>공동</option></select></div>'
+    +'</div><div>'
+    +'<div class="field-row"><label>시작월(YYYY-MM)</label><input type="text" id="ps" placeholder="2025-03"></div>'
+    +'<div class="field-row"><label>종료월(YYYY-MM)</label><input type="text" id="pe" placeholder="2027-02"></div>'
+    +'<div class="field-row"><label>현금/현물</label><select id="pct"><option>현금</option><option>현물</option></select></div>'
+    +'<div class="field-row"><label>3책5공 규칙</label><select id="psc"><option>3책5공</option><option>3책</option><option>없음</option></select></div>'
+    +'</div></div>'
+    +'<div style="margin-top:12px;padding:12px;border:1px solid #eee;border-radius:8px;background:#fafaf8">'
+    +'<div style="font-size:12px;font-weight:500;color:#444;margin-bottom:8px">4대보험 (사용자 부담분)</div>'
+    +'<label style="font-size:13px;margin-right:16px;cursor:pointer"><input type="radio" name="ins" value="false" checked onchange="document.getElementById(\'ins-row\').style.display=\'none\'"> 포함 안 함</label>'
+    +'<label style="font-size:13px;cursor:pointer"><input type="radio" name="ins" value="true" onchange="document.getElementById(\'ins-row\').style.display=\'flex\'"> 포함</label>'
+    +'<div id="ins-row" style="display:none;align-items:center;gap:8px;margin-top:8px">'
+    +'<label style="font-size:12px;color:#666;min-width:110px">4대보험 요율(%)</label>'
+    +'<input type="number" id="pir" value="9.0" step="0.1" min="0" max="20" style="width:70px">'
+    +'<span style="font-size:11px;color:#888">% (기본 9% — 국민연금+건강보험+고용보험+산재)</span>'
+    +'</div></div>'
+    +'<button class="btn btn-p" style="margin-top:12px" onclick="addProj()">+ 과제 등록</button></div>';
+}
+
+function addProj(){
+  let n=document.getElementById('pn').value.trim();
+  let c=document.getElementById('pc').value.trim();
+  if(!n||!c){alert('과제명과 과제번호를 입력하세요');return;}
+  let insYn=document.querySelector('input[name="ins"]:checked').value==='true';
+  let insRate=parseFloat(document.getElementById('pir').value)||9.0;
+  S.projects.push({id:uid(),name:n,code:c,agency:document.getElementById('pa').value,type:document.getElementById('pt').value,start:document.getElementById('ps').value||'2025-01',end:document.getElementById('pe').value||'2026-12',cashType:document.getElementById('pct').value,scRule:document.getElementById('psc').value,insYn:insYn,insRate:insRate});
+  render('projects');
+}
+
+function delProj(id){
+  if(!confirm('삭제하시겠습니까?'))return;
+  S.projects=S.projects.filter(function(p){return p.id!==id;});
+  Object.keys(S.part).forEach(function(k){if(k.includes('-'+id))delete S.part[k];});
+  render('projects');
+}
+
+/* ===== 연구원 관리 ===== */
+function renderResearchers(){
+  let editId=S.editingRes;
+  let editForm='';
+  if(editId){
+    let r=S.researchers.find(function(x){return x.id===editId;});
+    if(r){
+      editForm='<div class="edit-form">'
+        +'<div class="title">✏️ '+r.name+' 정보 수정</div>'
+        +'<div class="g2"><div>'
+        +'<div class="field-row"><label>이름</label><input type="text" id="e-name" value="'+r.name+'"></div>'
+        +'<div class="field-row"><label>소속</label><input type="text" id="e-dept" value="'+r.dept+'"></div>'
+        +'</div><div>'
+        +'<div class="field-row"><label>연봉(만원, 세전)</label><input type="number" id="e-salary" value="'+(r.salary/10000).toFixed(0)+'"></div>'
+        +'<div class="field-row"><label>역할</label><select id="e-pi"><option value="false" '+(r.isPI?'':'selected')+'>공동연구원</option><option value="true" '+(r.isPI?'selected':'')+'>PI (책임연구원)</option></select></div>'
+        +'</div></div>'
+        +'<div style="display:flex;gap:8px;margin-top:10px">'
+        +'<button class="btn btn-p" onclick="saveRes(\''+editId+'\')">저장</button>'
+        +'<button class="btn" onclick="S.editingRes=null;render(\'researchers\')">취소</button>'
+        +'</div></div>';
+    }
+  }
+
+  let rows=S.researchers.map(function(r){
+    let tot=totalRate(r.id), monthly=monthlySalary(r);
+    let avail=Math.round(monthly*(100-tot)/100);
+    return '<tr style="'+(editId===r.id?'background:#f0f7ff':'')+'">'
+      +'<td><strong>'+r.name+'</strong><br><span style="font-size:11px;color:#888">'+r.dept+'</span></td>'
+      +'<td><span class="badge '+(r.isPI?'b-blue':'b-gray')+'">'+(r.isPI?'PI':'공동연구원')+'</span></td>'
+      +'<td style="text-align:right">'+fmt(r.salary)+'만원</td>'
+      +'<td style="text-align:right">'+fmt(monthly)+'만원</td>'
+      +'<td style="text-align:center">'
+      +'<span style="font-size:15px;font-weight:500;color:'+(tot>100?'#A32D2D':tot>80?'#854F0B':'#27500A')+'">'+tot+'%</span>'
+      +'<div class="pbar"><div class="pfill" style="width:'+Math.min(tot,100)+'%;background:'+(tot>100?'#E24B4A':tot>80?'#EF9F27':'#1D9E75')+'"></div></div>'
+      +'</td>'
+      +'<td style="text-align:right;color:'+(avail<0?'#A32D2D':'#888')+'">'+fmt(avail)+'만원/월</td>'
+      +'<td style="display:flex;gap:4px">'
+      +'<button class="btn btn-sm btn-edit" onclick="S.editingRes=\''+(editId===r.id?'null':r.id)+'\';render(\'researchers\')">'+(editId===r.id?'닫기':'수정')+'</button>'
+      +'<button class="btn btn-sm btn-del" onclick="delRes(\''+r.id+'\')">삭제</button>'
+      +'</td></tr>';
+  }).join('');
+
+  document.getElementById('p-researchers').innerHTML=
+    editForm
+    +'<div class="card"><div class="card-title">연구원 목록</div>'
+    +'<table><thead><tr><th>이름</th><th>역할</th><th>연봉(세전)</th><th>월 인건비</th><th>현재 참여율</th><th>가용 인건비/월</th><th></th></tr></thead>'
+    +'<tbody>'+(rows||'<tr><td colspan="7" style="color:#bbb;text-align:center;padding:1rem">등록된 연구원 없음</td></tr>')+'</tbody></table></div>'
+    +'<div class="card"><div class="card-title">연구원 등록</div>'
+    +'<div class="g2"><div>'
+    +'<div class="field-row"><label>이름</label><input type="text" id="rn" placeholder="홍길동"></div>'
+    +'<div class="field-row"><label>소속</label><input type="text" id="rd" placeholder="전자공학과"></div>'
+    +'</div><div>'
+    +'<div class="field-row"><label>연봉(만원, 세전)</label><input type="number" id="rs" placeholder="6000"></div>'
+    +'<div class="field-row"><label>역할</label><select id="rp"><option value="false">공동연구원</option><option value="true">PI (책임연구원)</option></select></div>'
+    +'</div></div>'
+    +'<button class="btn btn-p" style="margin-top:8px" onclick="addRes()">+ 연구원 등록</button></div>';
+}
+
+function saveRes(id){
+  let r=S.researchers.find(function(x){return x.id===id;});
+  if(!r)return;
+  r.name=document.getElementById('e-name').value.trim()||r.name;
+  r.dept=document.getElementById('e-dept').value.trim()||r.dept;
+  r.salary=(parseInt(document.getElementById('e-salary').value)||0)*10000||r.salary;
+  r.isPI=document.getElementById('e-pi').value==='true';
+  S.editingRes=null;
+  render('researchers');
+}
+
+function addRes(){
+  let n=document.getElementById('rn').value.trim();
+  let sal=parseInt(document.getElementById('rs').value||0)*10000;
+  if(!n||!sal){alert('이름과 연봉을 입력하세요');return;}
+  S.researchers.push({id:uid(),name:n,dept:document.getElementById('rd').value||'-',salary:sal,isPI:document.getElementById('rp').value==='true'});
+  render('researchers');
+}
+
+function delRes(id){
+  if(!confirm('삭제하시겠습니까?'))return;
+  S.researchers=S.researchers.filter(function(r){return r.id!==id;});
+  Object.keys(S.part).forEach(function(k){if(k.startsWith(id+'-'))delete S.part[k];});
+  render('researchers');
+}
+
+/* ===== 3책5공 ===== */
+function getViolations(){
+  let v=[];
+  S.researchers.forEach(function(r){
+    let keys=Object.entries(S.part).filter(function(e){return e[0].startsWith(r.id+'-');});
+    let pi=keys.filter(function(e){return e[1].pi;}).length;
+    let co=keys.filter(function(e){return !e[1].pi;}).length;
+    if(pi>3) v.push(r.name+': 책임과제 '+pi+'개 (3책 초과)');
+    if(co>5) v.push(r.name+': 공동과제 '+co+'개 (5공 초과)');
+    let tot=totalRate(r.id);
+    if(tot>100) v.push(r.name+': 총 참여율 '+tot+'% (100% 초과)');
+  });
+  return v;
+}
+
+function renderSamchaek(){
+  let viol=getViolations();
+  let vhtml=viol.length ? viol.map(function(v){return '<div class="alert a-err">⚠ '+v+'</div>';}).join('') : '<div class="alert a-ok">✓ 모든 연구원 3책5공 규정 준수</div>';
+  let rows=S.researchers.map(function(r){
+    let keys=Object.entries(S.part).filter(function(e){return e[0].startsWith(r.id+'-');});
+    let pi=keys.filter(function(e){return e[1].pi;}).length;
+    let co=keys.filter(function(e){return !e[1].pi;}).length;
+    let tot=totalRate(r.id);
+    let piOk=pi<=3, coOk=co<=5, rOk=tot<=100;
+    let plist=keys.map(function(e){
+      let pId=e[0].split('-')[1], v=e[1];
+      let p=S.projects.find(function(x){return x.id===pId;});
+      return p?'<span class="badge '+(v.pi?'b-coral':'b-gray')+'" style="margin:1px">'+p.name+' '+v.rate+'% '+(v.pi?'(책임)':'(공동)')+'</span>':'';
+    }).join('');
+    return '<tr><td><strong>'+r.name+'</strong></td>'
+      +'<td><span class="badge '+(r.isPI?'b-blue':'b-gray')+'">'+(r.isPI?'PI':'공동')+'</span></td>'
+      +'<td style="text-align:center"><span style="font-weight:500;color:'+(piOk?'#27500A':'#791F1F')+'">'+pi+'/3</span> <span class="badge '+(piOk?'b-green':'b-red')+'">'+(piOk?'적합':'초과')+'</span></td>'
+      +'<td style="text-align:center"><span style="font-weight:500;color:'+(coOk?'#27500A':'#791F1F')+'">'+co+'/5</span> <span class="badge '+(coOk?'b-green':'b-red')+'">'+(coOk?'적합':'초과')+'</span></td>'
+      +'<td style="text-align:center"><span style="font-weight:500;color:'+(rOk?'#27500A':'#791F1F')+'">'+tot+'%</span> <span class="badge '+(rOk?'b-green':'b-red')+'">'+(rOk?'적합':'초과')+'</span></td>'
+      +'<td>'+(plist||'<span style="color:#bbb;font-size:11px">없음</span>')+'</td></tr>';
+  }).join('');
+
+  document.getElementById('p-samchaek').innerHTML=
+    '<div class="card" style="margin-bottom:1rem"><div class="card-title">규정 요약</div>'
+    +'<div class="g2">'
+    +'<div class="stat"><div class="stat-label">3책 원칙</div><div style="font-size:13px;margin-top:4px;line-height:1.6">PI는 책임과제 최대 <strong>3개</strong>까지 수행 가능</div></div>'
+    +'<div class="stat"><div class="stat-label">5공 원칙</div><div style="font-size:13px;margin-top:4px;line-height:1.6">연구원은 공동과제 최대 <strong>5개</strong>까지 참여 가능</div></div>'
+    +'</div></div>'
+    +vhtml
+    +'<div class="card"><div class="card-title">연구원별 현황</div>'
+    +'<div class="scroll"><table><thead><tr><th>연구원</th><th>역할</th><th>책임과제(3책)</th><th>공동과제(5공)</th><th>총 참여율</th><th>참여 과제 상세</th></tr></thead>'
+    +'<tbody>'+(rows||'<tr><td colspan="6" style="color:#bbb;text-align:center;padding:1rem">데이터 없음</td></tr>')+'</tbody></table></div></div>';
+}
+
+/* ===== localStorage 저장/불러오기 ===== */
+const STORAGE_KEY = 'research_mgmt_v3';
+
+function saveData(){
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      year: S.year, projects: S.projects, researchers: S.researchers, part: S.part
+    }));
+    let el = document.getElementById('save-status');
+    if(el) el.textContent = '💾 저장됨 — ' + new Date().toLocaleTimeString();
+  } catch(e){ console.warn('저장 실패:', e); }
+}
+
+function loadData(){
+  try {
+    let raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    let d = JSON.parse(raw);
+    if(d.projects) S.projects = d.projects;
+    if(d.researchers) S.researchers = d.researchers;
+    if(d.part) S.part = d.part;
+    if(d.year) S.year = d.year;
+    return true;
+  } catch(e){ return false; }
+}
+
+function resetData(){
+  if(!confirm('모든 데이터를 초기화하시겠습니까? 되돌릴 수 없습니다.')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+}
+
+// 데이터 변경 함수들에 자동 저장 추가
+var _sp=setPart; setPart=function(a,b,c,d){_sp(a,b,c,d);saveData();};
+var _ap=addProj; addProj=function(){_ap();saveData();};
+var _dp=delProj; delProj=function(a){_dp(a);saveData();};
+var _sr=saveRes; saveRes=function(a){_sr(a);saveData();};
+var _ar=addRes;  addRes=function(){_ar();saveData();};
+var _dr=delRes;  delRes=function(a){_dr(a);saveData();};
+
+// 시작 시 저장된 데이터 불러오기
+var loaded = loadData();
+
+// 저장 상태 바 추가
+document.querySelector('h1').insertAdjacentHTML('afterend',
+  '<div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;padding:8px 12px;background:#f8f8f6;border-radius:8px;border:1px solid #eee">'
+  +'<span id="save-status" style="font-size:12px;color:#888">💾 '+(loaded?'저장된 데이터 불러옴':'샘플 데이터로 시작')+'</span>'
+  +'<span style="font-size:11px;color:#bbb">— 변경사항이 자동으로 저장됩니다</span>'
+  +'<button onclick="resetData()" style="margin-left:auto;padding:3px 10px;font-size:11px;border:1px solid #A32D2D;border-radius:5px;background:transparent;color:#A32D2D;cursor:pointer">데이터 초기화</button>'
+  +'</div>'
+);
+
+render('matrix');
+</script>
+</body>
+</html>
